@@ -1,0 +1,34 @@
+#!/bin/bash
+
+PROG_NAME="safely_remove_drive"
+
+function safely_remove_drive()
+{
+	drive=$1
+	drive_partitions=`blkid | grep "$drive" | awk -F: '{ print $1 }'`
+
+	[ $? -ne 0 ] && { echo "Failed to execute blkid command."; exit 1; }
+
+	for p in `echo $drive_partitions`
+	do
+		if grep $p /proc/mounts &> /dev/null; then
+			udisksctl unmount -b $p
+		fi
+	done
+
+	drive="/dev/${drive}"
+	if udisksctl power-off -b $drive; then
+		echo "Device $1 removed safely."
+	fi
+}
+
+[ $UID -ne 0 ] && { echo "Root permission required"; exit 1; }
+
+[ $# -le 0 ] && { echo "Usage:"; echo "$PROG_NAME [drive1] [drive2] ..."; exit 1; }
+
+for arg in $*
+do
+	safely_remove_drive $arg
+done
+
+exit 0
